@@ -1,63 +1,71 @@
-# Reestructuración Completa: PERN Stack + TypeScript + Admin Panel
+# Integración Puragenda + Sistema de Seguridad Headless
 
-Migrar el proyecto de una SPA con JSX a una arquitectura **PERN (PostgreSQL, Express, React, Node.js)** con TypeScript, organizada en carpetas `backend/` y `frontend/`, eliminando todos los emojis y añadiendo un panel de administración para gestionar reservas.
+## Contexto
 
-## ⚠️ User Review Required
+Reemplazar el agendador de citas local de **nuevadent** con el widget embebible de **Puragenda** (SaaS), y habilitar el sistema de seguridad para integraciones headless en Puragenda.
 
-**Base de datos PostgreSQL**: Se necesita que tengas PostgreSQL instalado y corriendo localmente. El backend se conectará a una BD llamada `dental_clinic`. Usaré credenciales por defecto (`postgres` / `postgres`) a menos que indiques otras.
+---
 
-**Cambio destructivo**: Se reestructurará completamente el proyecto. Los archivos `.jsx` actuales en `src/` se eliminarán y serán reemplazados por `.tsx` dentro de `frontend/src/`.
+## Parte A — nuevadent: Reemplazar Booking por Widget Puragenda
 
-## Estructura Final del Proyecto
+### Cambios
 
-```
-nuevadent/
-├── backend/
-│   ├── src/
-│   │   ├── config/database.ts        # Conexión a PostgreSQL + auto-create tablas
-│   │   ├── routes/appointments.ts     # CRUD citas
-│   │   ├── routes/admin.ts            # Login admin
-│   │   ├── middleware/auth.ts         # Auth middleware
-│   │   ├── types/index.ts            # Interfaces
-│   │   └── index.ts                  # Express entry point (puerto 3001)
-│   ├── package.json
-│   └── tsconfig.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/layout/        # Header.tsx, Footer.tsx
-│   │   ├── components/sections/      # Hero, Features, Services, Team, Testimonials, FAQ (.tsx)
-│   │   ├── components/booking/       # Sistema de reservas completo (.tsx)
-│   │   ├── components/admin/         # AdminLogin, Dashboard, AppointmentTable (.tsx)
-│   │   ├── components/ui/Button.tsx
-│   │   ├── services/api.ts           # Fetch helpers para el backend
-│   │   ├── types/index.ts
-│   │   ├── App.tsx, main.tsx, index.css
-│   ├── index.html
-│   ├── package.json, tsconfig.json, vite.config.ts, tailwind.config.js
-│
-└── README.md
-```
+#### [DELETE] BookingContext.tsx, BookingModal.tsx, DentistSelector.tsx, ServiceSelector.tsx, StepIndicator.tsx
 
-## Cambios Principales
+Se eliminan todos los componentes del booking local (ya no se usarán).
 
-### 1. Backend (Express + PostgreSQL)
-- API REST con endpoints: crear cita, listar, cambiar estado, eliminar, estadísticas
-- Tabla `appointments` se crea automáticamente
-- Login admin simple (demo: `admin123`)
+#### [MODIFY] BookingSection.tsx
 
-### 2. Frontend (React + TypeScript + Vite)
-- Todos los `.jsx` → `.tsx` con interfaces tipadas
-- **Emojis eliminados** → reemplazados por iconos Lucide
-- Booking se conecta al API backend (no localStorage)
-- React Router para rutas `/`, `/admin`, `/admin/dashboard`
+Reescribir completamente. En lugar del CTA con modal, ahora embebe un **iframe** de Puragenda. Mantener el diseño visual de la sección (gradientes, iconos, texto) pero el card derecho ahora contiene el iframe del widget en vez de un botón CTA.
 
-### 3. Panel de Administración
-- Login con glassmorphism
-- Dashboard con estadísticas (total, pendientes, confirmadas, canceladas)
-- Tabla de citas con filtros, búsqueda, y acciones (confirmar/cancelar/eliminar)
+#### [MODIFY] App.tsx
 
-## Pregunta
-**¿Tienes PostgreSQL instalado? ¿Qué usuario/contraseña usas?** (por defecto usaré `postgres`/`postgres`)
+- Eliminar imports de `BookingProvider`, `BookingModal`
+- Quitar el wrapper `<BookingProvider>` y el `<BookingModal />`
+- `BookingSection` se mantiene (ahora es el iframe)
 
-## ¿Apruebas este plan?
+---
+
+## Parte B — Puragenda (agenda): Sistema de Seguridad Headless
+
+### 1. UI de Seguridad en Dashboard Settings
+
+#### [NEW] security-settings.tsx
+
+Componente `"use client"` con:
+- **API Key:** Ocultar/revelar/copiar/regenerar
+- **Allowed Origins:** Lista de dominios con agregar/eliminar
+
+#### [MODIFY] page.tsx (settings)
+
+Reemplazar tarjeta estática de API Key por componente interactivo.
+
+### 2. Server Actions
+
+#### [NEW] business-security.actions.ts
+
+- `regenerateApiKeyAction()` — genera `pg_` + UUID
+- `updateAllowedOriginsAction(origins)` — valida y actualiza
+
+### 3. Protección de Rutas API
+
+#### [NEW] api-guard.ts
+
+Helper que valida API Key + Origin en cada route handler.
+
+#### [MODIFY] 3 rutas API del negocio
+
+Agregar `validateApiRequest()` al inicio.
+
+### 4. CORS
+
+#### [MODIFY] middleware.ts + next.config.ts
+
+CORS permisivo en preflight, validación real en route handlers.
+
+---
+
+## Preguntas Abiertas
+
+1. **¿Cuál es el slug del negocio en Puragenda para la clínica dental?**
+2. **¿La URL de producción de Puragenda es `https://puragenda.vercel.app`?**
